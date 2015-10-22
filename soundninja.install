@@ -1,0 +1,45 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the node module.
+ */
+
+/**
+ * Implements hook_schema *
+ */
+function soundninja_schema() {
+  $schema['soundninja_node'] = array(
+    'description' => 'The base table for soundninja',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The {node}.nid this record affects.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'status' => array(
+        'description' => 'Run soundninja',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+  return $schema;
+}
+
+/**
+ * Implementa hook_uninstall()
+ */
+function soundninja_uninstall() {
+  //Delete variables added
+  variable_del('soundninja_client_id');
+  variable_del('soundninja_access_key');
+  //Get all node types
+  $types = node_type_get_types();
+  foreach ($types as $type => $type_array) {
+    variable_del('soundninja_options_' . $type);
+  }
+}

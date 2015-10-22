@@ -1,0 +1,4 @@
+name = Soundninja
+description = Enable soundninja integration
+core = 7.x
+config = 'admin/config/soundninja'

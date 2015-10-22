@@ -1,0 +1,145 @@
+<?php
+
+/*
+ * Implements hook_menu()
+ */
+function soundninja_menu() {
+  $items = array();
+  $items['admin/config/content/soundninja'] = array(
+    'title' => 'Soundninja',
+    'description' => 'Soundninja configuration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('soundninja_admin_settings'),
+    'access arguments' => array('acess soundninja configuration'),
+    'file' => 'soundninja.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission()
+ */
+function soundninja_permission() {
+  return array(
+    'access soundninja configuration' => array(
+      'title' => t('Access Soundninja Configuration'),
+      'description' => t('Access Soundninja configuration'),
+    )
+  );
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter()
+ */
+function soundninja_form_node_type_form_alter(&$form, $form_state) {
+  $type = $form['#node_type'];
+  $form['soundninja'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Soundninja settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'additional_settings',
+  );
+
+  $form['soundninja']['soundninja_options'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable soundninja checkbox on node form'),
+    '#default_value' => variable_get('soundninja_options_' . $type->type, FALSE),
+    //'#options' => $menu_options,
+    '#description' => t('Users may enable soundninja while adding or editing the node'),
+  );
+}
+
+
+function soundninja_form_node_form_alter(&$form, $form_state) {
+  if (user_access('access soundninja configuration')) {
+    $form['soundninja'] = array(
+      '#title' => t('Run soundninja'),
+      '#description' => t('Add Soundninja js on this content'),
+      '#type' => 'checkbox',
+      '#default_value' => '',
+    );
+  }
+}
+
+/**
+ * Implements hook_node_insert()
+ */
+function soundninja_node_insert($node) {
+  if (property_exists('soundninja', $node)) {
+    db_merge('soundninja_node')
+      ->key(array('nid' => $node->nid))
+      ->fields(array(
+        'nid' => $node->nid,
+        'status' => $node->soundninja
+      ))
+      ->execute();
+  }
+}
+
+/**
+ * Implements hook_node_insert()
+ */
+function soundninja_node_update($node) {
+  if (property_exists('soundninja', $node)) {
+    db_merge('soundninja_node')
+      ->key(array('nid' => $node->nid))
+      ->fields(array(
+        'nid' => $node->nid,
+        'status' => $node->soundninja
+      ))
+      ->execute();
+  }
+}
+
+/**
+ * Implements hook_node_delete()
+ */
+function soundninja_node_delete($node) {
+  db_delete('soundninja_node')->condition('nid', $node->nid)->execute();
+}
+
+/**
+ * Implements hook_node_load()
+ */
+function soundninja_node_load($nodes, $types) {
+  $enabled_types = array();
+  foreach ($types as $type) {
+    if (variable_get('soundninja_options_' . $type, 0)) {
+      $enabled_types[] = $type;
+    }
+  }
+  if (count(array_intersect($enabled_types, $types))) {
+    $result = db_query('SELECT nid, status FROM {soundninja_node} WHERE nid IN(:nids)', array(':nids' => array_keys($nodes)));
+    // Add our extra data to the node objects.
+    foreach ($result as $record) {
+      $nodes[$record->nid]->soundninja = $record->status;
+    }
+  }
+}
+
+/**
+ * Implements hook_node_views()
+ */
+function soundninja_node_view($node, $view_mode, $langcode) {
+  if ($node->soundninja && (variable_get('soundninja_client_id', ''))) {
+    $node->content['my_additional_field'] = array(
+      '#markup' => '',
+      '#attached' => array(
+        'js' => array(
+          array(
+            'data' => 'http://soundninja.github.io/demos/build/settings/' . variable_get('soundninja_client_id') . '.js',
+            'type' => 'external',
+            'scope' => 'footer',
+          ),
+          array(
+            'data' => 'http://soundninja.github.io/demos/build/Soundninja.min.js',
+            'type' => 'external',
+            'scope' => 'footer',
+          ),
+        ),
+      )
+    );
+  }
+}
